@@ -21,24 +21,22 @@ metadata = MetaData()
 # Завантаження таблиць - автоматичне завантаження
 metadata.reflect(bind=engine)
 
-# Визначення таблиць
-doctors_table = metadata.tables['doctors']
-vacations_table = metadata.tables['vacations']
+# Визначення таблиці
+wards_table = metadata.tables['wards']
 
-# Ваш залишений код для виконання запиту
-select_query = select([doctors_table.c['name'], doctors_table.c['salary']]).where(
-    doctors_table.c['id'].notin_(
-        select([vacations_table.c['doctor_id']])
-    )
+# Ваш SQL-запит
+department_id = 1  # Замініть на конкретне значення
+select_query = select([wards_table.c['name']]).where(
+    wards_table.c['department_id'] == department_id
 )
 
 try:
     with engine.connect() as connection:
         results = connection.execute(select_query).fetchall()
 
-        print("Прізвища та зарплати лікарів, які не перебувають у відпустці:")
+        print(f"Назви палат у відділенні з ID {department_id}:")
         for row in results:
-            print(f"Ім'я: {row['name']}, Зарплата: {row['salary']}")
+            print(row['name'])
 
 except Exception as e:
     print(f"Помилка підключення до бази даних: {e}")
