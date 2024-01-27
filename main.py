@@ -1,44 +1,45 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy import create_engine, MetaData, Table, select
+import json
 
-Base = declarative_base()
+# Зчитування конфігураційних даних з файлу
+with open('config.json') as f:
+    config = json.load(f)
 
-class Doctor(Base):
-    __tablename__ = 'doctors'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    phone = Column(String)
-    salary = Column(Integer)
-    surname = Column(String)
-    specializations = relationship('Specialization', secondary='doctors_specializations')
+# Отримання логіну та паролю з об'єкта конфігурації
+db_user = config['user']
+db_password = config['password']
 
-class Specialization(Base):
-    __tablename__ = 'specializations'
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
+# Створення engine для підключення до бази даних
+db_url = f'postgresql+psycopg2://{db_user}:{db_password}@localhost:5432/Hospital'
+engine = create_engine(db_url)
 
-class DoctorsSpecializations(Base):
-    __tablename__ = 'doctors_specializations'
-    doctor_id = Column(Integer, ForeignKey('doctors.id'), primary_key=True)
-    specialization_id = Column(Integer, ForeignKey('specializations.id'), primary_key=True)
+# З'єднання з БД
+conn = engine.connect()
 
-# Підключення до бази даних
-engine = create_engine('sqlite:///hospital.db')  # Використовуйте свій рядок підключення
+metadata = MetaData()
 
-# Створення таблиць у базі даних
-Base.metadata.create_all(engine)
+# Завантаження таблиць - автоматичне завантаження
+metadata.reflect(bind=engine)
 
-# Створення сесії
-Session = sessionmaker(bind=engine)
-session = Session()
+# Визначення таблиць
+doctors_table = metadata.tables['doctors']
+vacations_table = metadata.tables['vacations']
 
-# Запит для виведення прізвищ лікарів та їх спеціалізацій
-doctors_specializations = session.query(Doctor.surname, Specialization.name).join(Doctor.specializations).all()
+# Ваш залишений код для виконання запиту
+select_query = select([doctors_table.c['name'], doctors_table.c['salary']]).where(
+    doctors_table.c['id'].notin_(
+        select([vacations_table.c['doctor_id']])
+    )
+)
 
-# Виведення результатів
-for doctor_surname, specialization_name in doctors_specializations:
-    print(f"{doctor_surname}: {specialization_name}")
+try:
+    with engine.connect() as connection:
+        results = connection.execute(select_query).fetchall()
 
-# Закриття сесії
-session.close()
+        print("Прізвища та зарплати лікарів, які не перебувають у відпустці:")
+        for row in results:
+            print(f"Ім'я: {row['name']}, Зарплата: {row['salary']}")
+
+except Exception as e:
+    print(f"Помилка підключення до бази даних: {e}")
 
