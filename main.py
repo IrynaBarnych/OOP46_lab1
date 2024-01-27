@@ -22,35 +22,33 @@ metadata = MetaData()
 metadata.reflect(bind=engine)
 
 # Визначення таблиць
-donations_table = metadata.tables['donations']
-sponsors_table = metadata.tables['sponsors']
 departments_table = metadata.tables['departments']
+sponsors_table = metadata.tables['sponsors']
+sponsorships_table = metadata.tables['sponsorships']
 
 # Ваш SQL-запит
-selected_month = 1  # Замініть на конкретне значення місяця
+company_name = 'Company XYZ'  # Замініть на конкретне ім'я компанії
 select_query = (
     select([
-        departments_table.c['name'].label('department'),
-        sponsors_table.c['name'].label('sponsor'),
-        donations_table.c['amount'].label('donation_amount'),
-        donations_table.c['date'].label('donation_date')
+        departments_table.c['name'].label('department')
     ])
+    .distinct()
     .select_from(
-        donations_table
-        .join(sponsors_table, donations_table.c['sponsor_id'] == sponsors_table.c['id'])
-        .join(departments_table, donations_table.c['department_id'] == departments_table.c['id'])
+        departments_table
+        .join(sponsorships_table, departments_table.c['id'] == sponsorships_table.c['department_id'])
+        .join(sponsors_table, sponsorships_table.c['sponsor_id'] == sponsors_table.c['id'])
     )
-    .where(text(f"EXTRACT(MONTH FROM donations.date) = {selected_month}"))
+    .where(sponsors_table.c['name'] == company_name)
 )
 
 try:
     with engine.connect() as connection:
         results = connection.execute(select_query).fetchall()
 
-        print(f"Пожертвування за місяць {selected_month}:")
+        print(f"Назви відділень, які спонсоруються компанією {company_name}:")
         for row in results:
-            print(f"Відділення: {row['department']}, Спонсор: {row['sponsor']}, "
-                  f"Сума пожертвування: {row['donation_amount']}, Дата пожертвування: {row['donation_date']}")
+            print(f"Відділення: {row['department']}")
 
 except Exception as e:
     print(f"Помилка підключення до бази даних: {e}")
+
